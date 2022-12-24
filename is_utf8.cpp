@@ -4,8 +4,142 @@
 #include <stdint.h>
 #include <string.h>
 
-#ifdef __aarch64__
+#ifdef _MSC_VER
+#define IS_UTF8_VISUAL_STUDIO 1
+/**
+ * We want to differentiate carefully between
+ * clang under visual studio and regular visual
+ * studio.
+ *
+ * Under clang for Windows, we enable:
+ *  * target pragmas so that part and only part of the
+ *     code gets compiled for advanced instructions.
+ *
+ */
+#ifdef __clang__
+// clang under visual studio
+#define IS_UTF8_CLANG_VISUAL_STUDIO 1
+#else
+// just regular visual studio (best guess)
+#define IS_UTF8_REGULAR_VISUAL_STUDIO 1
+#endif // __clang__
+#endif // _MSC_VER
 
+#if defined(__x86_64__) || defined(_M_AMD64)
+#define IS_UTF8_IS_X86_64 1
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define IS_UTF8_IS_ARM64 1
+#elif defined(__PPC64__) || defined(_M_PPC64)
+#define IS_UTF8_IS_PPC64 1
+#else // defined(__x86_64__) || defined(_M_AMD64)
+#define IS_UTF8_IS_32BITS 1
+// We do not support 32-bit platforms, but it can be
+// handy to identify them.
+#if defined(_M_IX86) || defined(__i386__)
+#define IS_UTF8_IS_X86_32BITS 1
+#elif defined(__arm__) || defined(_M_ARM)
+#define IS_UTF8_IS_ARM_32BITS 1
+#elif defined(__PPC__) || defined(_M_PPC)
+#define IS_UTF8_IS_PPC_32BITS 1
+#endif // defined(_M_IX86) || defined(__i386__)
+
+#endif // defined(__x86_64__) || defined(_M_AMD64)
+
+#if !IS_UTF8_IS_ARM64
+
+namespace is_utf8_fallback {
+
+static inline bool is_utf8(const char *buf, size_t len) {
+  const uint8_t *data = reinterpret_cast<const uint8_t *>(buf);
+  uint64_t pos = 0;
+  uint32_t code_point = 0;
+  while (pos < len) {
+    // check of the next 8 bytes are ascii.
+    uint64_t next_pos = pos + 16;
+    if (next_pos <= len) { // if it is safe to read 8 more bytes, check that
+                           // they are ascii
+      uint64_t v1;
+      ::memcpy(&v1, data + pos, sizeof(uint64_t));
+      uint64_t v2;
+      ::memcpy(&v2, data + pos + sizeof(uint64_t), sizeof(uint64_t));
+      uint64_t v(v1 | v2);
+      if ((v & 0x8080808080808080) == 0) {
+        pos = next_pos;
+        continue;
+      }
+    }
+    unsigned char byte = data[pos];
+
+    while (byte < 128) {
+      if (++pos == len) {
+        return true;
+      }
+      byte = data[pos];
+    }
+
+    if ((byte & 224) == 192) {
+      next_pos = pos + 2;
+      if (next_pos > len) {
+        return false;
+      }
+      if ((data[pos + 1] & 192) != 128) {
+        return false;
+      }
+      // range check
+      code_point = (byte & 31) << 6 | (data[pos + 1] & 63);
+      if ((code_point < 0x80) || (0x7ff < code_point)) {
+        return false;
+      }
+    } else if ((byte & 240) == 224) {
+      next_pos = pos + 3;
+      if (next_pos > len) {
+        return false;
+      }
+      if ((data[pos + 1] & 192) != 128) {
+        return false;
+      }
+      if ((data[pos + 2] & 192) != 128) {
+        return false;
+      }
+      // range check
+      code_point =
+          (byte & 15) << 12 | (data[pos + 1] & 63) << 6 | (data[pos + 2] & 63);
+      if ((code_point < 0x800) || (0xffff < code_point) ||
+          (0xd7ff < code_point && code_point < 0xe000)) {
+        return false;
+      }
+    } else if ((byte & 248) == 240) { // 240
+      next_pos = pos + 4;
+      if (next_pos > len) {
+        return false;
+      }
+      if ((data[pos + 1] & 192) != 128) {
+        return false;
+      }
+      if ((data[pos + 2] & 192) != 128) {
+        return false;
+      }
+      if ((data[pos + 3] & 192) != 128) {
+        return false;
+      }
+      // range check
+      code_point = (byte & 7) << 18 | (data[pos + 1] & 63) << 12 |
+                   (data[pos + 2] & 63) << 6 | (data[pos + 3] & 63);
+      if (code_point <= 0xffff || 0x10ffff < code_point) {
+        return false;
+      }
+    } else {
+      // we may have a continuation
+      return false;
+    }
+    pos = next_pos;
+  }
+  return true;
+}
+
+} // namespace is_utf8_fallback
+#endif
+#if IS_UTF8_IS_ARM64
 #include <arm_neon.h>
 
 namespace is_utf8_neon {
@@ -150,7 +284,7 @@ check_utf8_bytes(int8x16_t current_bytes, struct processed_utf_bytes *previous,
   return pb;
 }
 
-bool is_utf8(const unsigned char *src, size_t len) {
+static inline bool is_utf8(const unsigned char *src, size_t len) {
   size_t i = 0;
   int8x16_t has_error = vdupq_n_s8(0);
   struct processed_utf_bytes previous = {.rawbytes = vdupq_n_s8(0),
@@ -184,12 +318,199 @@ bool is_utf8(const unsigned char *src, size_t len) {
   return vmaxvq_u8(vreinterpretq_u8_s8(has_error)) == 0 ? true : false;
 }
 } // namespace is_utf8_neon
-#endif
 
-#ifdef __x86_64__
+bool is_utf8(const unsigned char *src, size_t len) {
+  return is_utf8_neon::is_utf8(src, len);
+}
+// We are done!
+
+// #endif // IS_UTF8_IS_ARM64
+#elif IS_UTF8_IS_X86_64
+
+#ifdef __clang__
+// clang does not have GCC push pop
+// warning: clang attribute push can't be used within a namespace in clang up
+// til 8.0 so IS_UTF8_TARGET_REGION and IS_UTF8_UNTARGET_REGION must be
+// *outside* of a namespace.
+#define IS_UTF8_TARGET_REGION(T)                                               \
+  _Pragma(IS_UTF8_STRINGIFY(                                                   \
+      clang attribute push(__attribute__((target(T))), apply_to = function)))
+#define IS_UTF8_UNTARGET_REGION _Pragma("clang attribute pop")
+#elif defined(__GNUC__)
+// GCC is easier
+#define IS_UTF8_TARGET_REGION(T)                                               \
+  _Pragma("GCC push_options") _Pragma(IS_UTF8_STRINGIFY(GCC target(T)))
+#define IS_UTF8_UNTARGET_REGION _Pragma("GCC pop_options")
+#endif // clang then gcc
+
+// Default target region macros don't do anything.
+#ifndef IS_UTF8_TARGET_REGION
+#define IS_UTF8_TARGET_REGION(T)
+#define IS_UTF8_UNTARGET_REGION
+#endif // IS_UTF8_TARGET_REGION
+
+#include <cstdint>
+#include <cstdlib>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#elif defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)
+#include <cpuid.h>
+#endif // defined(_MSC_VER)
+
+namespace is_utf8 {
+
+enum instruction_set {
+  DEFAULT = 0x0,
+  NEON = 0x1,
+  AVX2 = 0x4,
+  SSE42 = 0x8,
+  PCLMULQDQ = 0x10,
+  BMI1 = 0x20,
+  BMI2 = 0x40,
+  ALTIVEC = 0x80,
+  AVX512F = 0x100,
+  AVX512DQ = 0x200,
+  AVX512IFMA = 0x400,
+  AVX512PF = 0x800,
+  AVX512ER = 0x1000,
+  AVX512CD = 0x2000,
+  AVX512BW = 0x4000,
+  AVX512VL = 0x8000,
+  AVX512VBMI2 = 0x10000
+};
+namespace cpuid_bit {
+// Can be found on Intel ISA Reference for CPUID
+
+// EAX = 0x01
+constexpr uint32_t pclmulqdq = uint32_t(1)
+                               << 1; ///< @private bit  1 of ECX for EAX=0x1
+constexpr uint32_t sse42 = uint32_t(1)
+                           << 20; ///< @private bit 20 of ECX for EAX=0x1
+
+// EAX = 0x7f (Structured Extended Feature Flags), ECX = 0x00 (Sub-leaf)
+// See: "Table 3-8. Information Returned by CPUID Instruction"
+namespace ebx {
+constexpr uint32_t bmi1 = uint32_t(1) << 3;
+constexpr uint32_t avx2 = uint32_t(1) << 5;
+constexpr uint32_t bmi2 = uint32_t(1) << 8;
+constexpr uint32_t avx512f = uint32_t(1) << 16;
+constexpr uint32_t avx512dq = uint32_t(1) << 17;
+constexpr uint32_t avx512ifma = uint32_t(1) << 21;
+constexpr uint32_t avx512cd = uint32_t(1) << 28;
+constexpr uint32_t avx512bw = uint32_t(1) << 30;
+constexpr uint32_t avx512vl = uint32_t(1) << 31;
+} // namespace ebx
+
+namespace ecx {
+constexpr uint32_t avx512vbmi = uint32_t(1) << 1;
+constexpr uint32_t avx512vbmi2 = uint32_t(1) << 6;
+constexpr uint32_t avx512vnni = uint32_t(1) << 11;
+constexpr uint32_t avx512bitalg = uint32_t(1) << 12;
+constexpr uint32_t avx512vpopcnt = uint32_t(1) << 14;
+} // namespace ecx
+namespace edx {
+constexpr uint32_t avx512vp2intersect = uint32_t(1) << 8;
+}
+} // namespace cpuid_bit
+
+static inline void cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
+                         uint32_t *edx) {
+#if defined(_MSC_VER)
+  int cpu_info[4];
+  __cpuid(cpu_info, *eax);
+  *eax = cpu_info[0];
+  *ebx = cpu_info[1];
+  *ecx = cpu_info[2];
+  *edx = cpu_info[3];
+#elif defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)
+  uint32_t level = *eax;
+  __get_cpuid(level, eax, ebx, ecx, edx);
+#else
+  uint32_t a = *eax, b, c = *ecx, d;
+  asm volatile("cpuid\n\t" : "+a"(a), "=b"(b), "+c"(c), "=d"(d));
+  *eax = a;
+  *ebx = b;
+  *ecx = c;
+  *edx = d;
+#endif
+}
+
+static inline uint32_t detect_supported_architectures() {
+  uint32_t eax;
+  uint32_t ebx = 0;
+  uint32_t ecx = 0;
+  uint32_t edx = 0;
+  uint32_t host_isa = 0x0;
+
+  // EBX for EAX=0x1
+  eax = 0x1;
+  cpuid(&eax, &ebx, &ecx, &edx);
+
+  if (ecx & cpuid_bit::sse42) {
+    host_isa |= instruction_set::SSE42;
+  }
+
+  if (ecx & cpuid_bit::pclmulqdq) {
+    host_isa |= instruction_set::PCLMULQDQ;
+  }
+
+  // ECX for EAX=0x7
+  eax = 0x7;
+  ecx = 0x0; // Sub-leaf = 0
+  cpuid(&eax, &ebx, &ecx, &edx);
+  if (ebx & cpuid_bit::ebx::avx2) {
+    host_isa |= instruction_set::AVX2;
+  }
+  if (ebx & cpuid_bit::ebx::bmi1) {
+    host_isa |= instruction_set::BMI1;
+  }
+  if (ebx & cpuid_bit::ebx::bmi2) {
+    host_isa |= instruction_set::BMI2;
+  }
+  if (ebx & cpuid_bit::ebx::avx512f) {
+    host_isa |= instruction_set::AVX512F;
+  }
+  if (ebx & cpuid_bit::ebx::avx512bw) {
+    host_isa |= instruction_set::AVX512BW;
+  }
+  if (ebx & cpuid_bit::ebx::avx512cd) {
+    host_isa |= instruction_set::AVX512CD;
+  }
+  if (ebx & cpuid_bit::ebx::avx512dq) {
+    host_isa |= instruction_set::AVX512DQ;
+  }
+  if (ebx & cpuid_bit::ebx::avx512vl) {
+    host_isa |= instruction_set::AVX512VL;
+  }
+  if (ecx & cpuid_bit::ecx::avx512vbmi2) {
+    host_isa |= instruction_set::AVX512VBMI2;
+  }
+  return host_isa;
+}
+
+enum {
+  FALLBACK_KERNEL = 2,
+  SSE_KERNEL = 1,
+  AVX2_KERNEL = 0
+}
+
+static inline uint32_t
+which_kernel() {
+  if ((detect_supported_architectures() & instruction_set::AVX2) ==
+      instruction_set::AVX2) {
+    return AVX2_KERNEL;
+  }
+  if ((detect_supported_architectures() & instruction_set::SSE42) ==
+      instruction_set::SSE42) {
+    return SSE_KERNEL;
+  }
+  return FALLBACK_KERNEL; // old
+}
+} // namespace is_utf8
 
 #include <x86intrin.h>
 
+IS_UTF8_TARGET_REGION("sse4.2")
 namespace is_utf8_sse {
 // all byte values must be no larger than 0xF4
 static inline void check_smaller_than_0xf4(__m128i current_bytes,
@@ -324,7 +645,7 @@ check_utf8_bytes(__m128i current_bytes, struct processed_utf_bytes *previous,
   return pb;
 }
 
-bool is_utf8(const unsigned char *src, size_t len) {
+static inline bool is_utf8(const unsigned char *src, size_t len) {
   size_t i = 0;
   __m128i has_error = _mm_setzero_si128();
   struct processed_utf_bytes previous = {.rawbytes = _mm_setzero_si128(),
@@ -356,13 +677,9 @@ bool is_utf8(const unsigned char *src, size_t len) {
   return _mm_testz_si128(has_error, has_error) ? true : false;
 }
 } // namespace is_utf8_sse
+IS_UTF8_UNTARGET_REGION
 
-#endif
-
-#ifdef __AVX2__
-
-#include <x86intrin.h>
-
+IS_UTF8_TARGET_REGION("avx2,bmi,lzcnt")
 namespace is_utf8_avx2 {
 
 static inline __m256i push_last_byte_of_a_to_b(__m256i a, __m256i b) {
@@ -522,7 +839,7 @@ check_utf8_bytes(__m256i current_bytes,
   return pb;
 }
 
-int is_utf8(const unsigned char *src, size_t len) {
+static inline int is_utf8(const unsigned char *src, size_t len) {
   size_t i = 0;
   __m256i has_error = _mm256_setzero_si256();
   struct avx_processed_utf_bytes previous = {
@@ -555,5 +872,23 @@ int is_utf8(const unsigned char *src, size_t len) {
   return _mm256_testz_si256(has_error, has_error) ? true : false;
 }
 } // namespace is_utf8_avx2
+IS_UTF8_UNTARGET_REGION
 
-#endif
+bool is_utf8(const unsigned char *src, size_t len) {
+  const static int kernel = is_utf8::which_kernel();
+  switch (kernel) {
+  case AVX2_KERNEL:
+    return is_utf8_avx2::is_utf8(src, len);
+  case SSE_KERNEL:
+    return is_utf8_sse::is_utf8(src, len);
+  default:
+    return is_utf8_fallback::is_utf8(src, len);
+  }
+}
+
+// #endif // IS_UTF8_IS_X86_64
+#else
+bool is_utf8(const unsigned char *src, size_t len) {
+  return is_utf8_fallback::is_utf8(src, len);
+}
+#endif // IS_UTF8_IS_X86_64
