@@ -62,12 +62,6 @@ install(
 )
 
 install(
-    DIRECTORY include/is_utf8
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-    COMPONENT is_utf8_Development
-)
-
-install(
     TARGETS is_utf8
     EXPORT is_utf8Targets
     RUNTIME COMPONENT is_utf8_Runtime
