@@ -659,8 +659,8 @@ static inline bool is_utf8(const char *src, size_t len) {
   size_t i = 0;
   __m128i has_error = _mm_setzero_si128();
   struct processed_utf_bytes previous;
-  previous.rawbytes = _mm_setzero_si128() previous.high_nibbles =
-      _mm_setzero_si128();
+  previous.rawbytes = _mm_setzero_si128();
+  previous.high_nibbles = _mm_setzero_si128();
   previous.carried_continuations = _mm_setzero_si128();
   if (len >= 16) {
     for (; i <= len - 16; i += 16) {
