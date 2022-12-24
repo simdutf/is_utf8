@@ -10,10 +10,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/cache@v3
-        with:
-          path: dependencies/.cache
-          key: ${{ hashFiles('dependencies/CMakeLists.txt') }}
       - name: Use cmake
         run: |
           mkdir builddebug &&
