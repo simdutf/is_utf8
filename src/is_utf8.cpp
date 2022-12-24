@@ -220,8 +220,8 @@ static inline void check_overlong(int8x16_t current_bytes,
                                   int8x16_t *has_error) {
   int8x16_t off1_hibits = vextq_s8(previous_hibits, hibits, 16 - 1);
   static const int8_t initial_mins_array[] = {
-      -128, -128, -128, -128, -128, -128,
-      -128, -128, -128, -128, -128, -128, // 10xx => false
+      -128,       -128, -128, -128, -128, -128,
+      -128,       -128, -128, -128, -128, -128, // 10xx => false
       char(0xC2), -128,                         // 110x
       char(0xE1),                               // 1110
       char(0xF1),
@@ -232,9 +232,9 @@ static inline void check_overlong(int8x16_t current_bytes,
   uint8x16_t initial_under = vcgtq_s8(initial_mins, off1_current_bytes);
 
   static const int8_t second_mins_array[] = {
-      -128, -128, -128, -128, -128, -128,
-      -128, -128, -128, -128, -128, -128, // 10xx => false
-      127,  127,                          // 110x => true
+      -128,       -128, -128, -128, -128, -128,
+      -128,       -128, -128, -128, -128, -128, // 10xx => false
+      127,        127,                          // 110x => true
       char(0xA0),                               // 1110
       char(0x90),
   };
@@ -287,10 +287,10 @@ check_utf8_bytes(int8x16_t current_bytes, struct processed_utf_bytes *previous,
 static inline bool is_utf8(const char *src, size_t len) {
   size_t i = 0;
   int8x16_t has_error = vdupq_n_s8(0);
-  struct processed_utf_bytes previous = {.rawbytes = vdupq_n_s8(0),
-                                         .high_nibbles = vdupq_n_s8(0),
-                                         .carried_continuations =
-                                             vdupq_n_s8(0)};
+  struct processed_utf_bytes previous;
+  previous.rawbytes = vdupq_n_s8(0);
+  previous.high_nibbles = vdupq_n_s8(0);
+  previous.carried_continuations = vdupq_n_s8(0);
   if (len >= 16) {
     for (; i <= len - 16; i += 16) {
       int8x16_t current_bytes = vld1q_s8((int8_t *)(src + i));
@@ -511,7 +511,7 @@ static inline uint32_t which_kernel() {
 } // namespace is_utf8_core
 
 #if IS_UTF8_VISUAL_STUDIO
-#include <intrin.h>  // visual studio or clang
+#include <intrin.h> // visual studio or clang
 #else
 #include <x86intrin.h>
 #endif
@@ -658,10 +658,10 @@ check_utf8_bytes(__m128i current_bytes, struct processed_utf_bytes *previous,
 static inline bool is_utf8(const char *src, size_t len) {
   size_t i = 0;
   __m128i has_error = _mm_setzero_si128();
-  struct processed_utf_bytes previous = {.rawbytes = _mm_setzero_si128(),
-                                         .high_nibbles = _mm_setzero_si128(),
-                                         .carried_continuations =
-                                             _mm_setzero_si128()};
+  struct processed_utf_bytes previous;
+  previous.rawbytes = _mm_setzero_si128() previous.high_nibbles =
+      _mm_setzero_si128();
+  previous.carried_continuations = _mm_setzero_si128();
   if (len >= 16) {
     for (; i <= len - 16; i += 16) {
       __m128i current_bytes = _mm_loadu_si128((const __m128i *)(src + i));
@@ -855,10 +855,10 @@ check_utf8_bytes(__m256i current_bytes,
 static inline bool is_utf8(const char *src, size_t len) {
   size_t i = 0;
   __m256i has_error = _mm256_setzero_si256();
-  struct avx_processed_utf_bytes previous = {
-      .rawbytes = _mm256_setzero_si256(),
-      .high_nibbles = _mm256_setzero_si256(),
-      .carried_continuations = _mm256_setzero_si256()};
+  struct avx_processed_utf_bytes previous;
+  previous.rawbytes = _mm256_setzero_si256();
+  previous.high_nibbles = _mm256_setzero_si256();
+  previous.carried_continuations = _mm256_setzero_si256();
   if (len >= 32) {
     for (; i <= len - 32; i += 32) {
       __m256i current_bytes = _mm256_loadu_si256((const __m256i *)(src + i));
