@@ -284,7 +284,7 @@ check_utf8_bytes(int8x16_t current_bytes, struct processed_utf_bytes *previous,
   return pb;
 }
 
-static inline bool is_utf8(const unsigned char *src, size_t len) {
+static inline bool is_utf8(const char *src, size_t len) {
   size_t i = 0;
   int8x16_t has_error = vdupq_n_s8(0);
   struct processed_utf_bytes previous = {.rawbytes = vdupq_n_s8(0),
@@ -319,7 +319,7 @@ static inline bool is_utf8(const unsigned char *src, size_t len) {
 }
 } // namespace is_utf8_neon
 
-bool is_utf8(const unsigned char *src, size_t len) {
+bool is_utf8(const char *src, size_t len) {
   return is_utf8_neon::is_utf8(src, len);
 }
 // We are done!
@@ -327,27 +327,34 @@ bool is_utf8(const unsigned char *src, size_t len) {
 // #endif // IS_UTF8_IS_ARM64
 #elif IS_UTF8_IS_X86_64
 
+#ifndef SIMDUTF_TARGET_REGION // borrow directly from simdutf
+
+#define SIMDUTF_STRINGIFY_IMPLEMENTATION_(a) #a
+#define SIMDUTF_STRINGIFY(a) SIMDUTF_STRINGIFY_IMPLEMENTATION_(a)
+
 #ifdef __clang__
 // clang does not have GCC push pop
 // warning: clang attribute push can't be used within a namespace in clang up
-// til 8.0 so IS_UTF8_TARGET_REGION and IS_UTF8_UNTARGET_REGION must be
+// til 8.0 so SIMDUTF_TARGET_REGION and SIMDUTF_UNTARGET_REGION must be
 // *outside* of a namespace.
-#define IS_UTF8_TARGET_REGION(T)                                               \
-  _Pragma(IS_UTF8_STRINGIFY(                                                   \
+#define SIMDUTF_TARGET_REGION(T)                                               \
+  _Pragma(SIMDUTF_STRINGIFY(                                                   \
       clang attribute push(__attribute__((target(T))), apply_to = function)))
-#define IS_UTF8_UNTARGET_REGION _Pragma("clang attribute pop")
+#define SIMDUTF_UNTARGET_REGION _Pragma("clang attribute pop")
 #elif defined(__GNUC__)
 // GCC is easier
-#define IS_UTF8_TARGET_REGION(T)                                               \
-  _Pragma("GCC push_options") _Pragma(IS_UTF8_STRINGIFY(GCC target(T)))
-#define IS_UTF8_UNTARGET_REGION _Pragma("GCC pop_options")
+#define SIMDUTF_TARGET_REGION(T)                                               \
+  _Pragma("GCC push_options") _Pragma(SIMDUTF_STRINGIFY(GCC target(T)))
+#define SIMDUTF_UNTARGET_REGION _Pragma("GCC pop_options")
 #endif // clang then gcc
 
 // Default target region macros don't do anything.
-#ifndef IS_UTF8_TARGET_REGION
-#define IS_UTF8_TARGET_REGION(T)
-#define IS_UTF8_UNTARGET_REGION
-#endif // IS_UTF8_TARGET_REGION
+#ifndef SIMDUTF_TARGET_REGION
+#define SIMDUTF_TARGET_REGION(T)
+#define SIMDUTF_UNTARGET_REGION
+#endif
+
+#endif // SIMDUTF_TARGET_REGION
 
 #include <cstdint>
 #include <cstdlib>
@@ -357,7 +364,7 @@ bool is_utf8(const unsigned char *src, size_t len) {
 #include <cpuid.h>
 #endif // defined(_MSC_VER)
 
-namespace is_utf8 {
+namespace is_utf8_core {
 
 enum instruction_set {
   DEFAULT = 0x0,
@@ -488,14 +495,9 @@ static inline uint32_t detect_supported_architectures() {
   return host_isa;
 }
 
-enum {
-  FALLBACK_KERNEL = 2,
-  SSE_KERNEL = 1,
-  AVX2_KERNEL = 0
-}
+enum { FALLBACK_KERNEL = 2, SSE_KERNEL = 1, AVX2_KERNEL = 0 };
 
-static inline uint32_t
-which_kernel() {
+static inline uint32_t which_kernel() {
   if ((detect_supported_architectures() & instruction_set::AVX2) ==
       instruction_set::AVX2) {
     return AVX2_KERNEL;
@@ -506,18 +508,20 @@ which_kernel() {
   }
   return FALLBACK_KERNEL; // old
 }
-} // namespace is_utf8
+} // namespace is_utf8_core
 
 #include <x86intrin.h>
 
-IS_UTF8_TARGET_REGION("sse4.2")
+#define IS_UTF8_TARGET_SSE SIMDUTF_TARGET_REGION("sse4.2")
+
+IS_UTF8_TARGET_SSE
 namespace is_utf8_sse {
 // all byte values must be no larger than 0xF4
 static inline void check_smaller_than_0xf4(__m128i current_bytes,
                                            __m128i *has_error) {
   // unsigned, saturates to 0 below max
-  *has_error = _mm_or_si128(*has_error,
-                            _mm_subs_epu8(current_bytes, _mm_set1_epi8(0xF4)));
+  *has_error = _mm_or_si128(
+      *has_error, _mm_subs_epu8(current_bytes, _mm_set1_epi8(char(0xF4))));
 }
 
 static inline __m128i continuation_lengths(__m128i high_nibbles) {
@@ -562,13 +566,15 @@ static inline void check_continuations(__m128i initial_lengths, __m128i carries,
 static inline void check_first_continuation_max(__m128i current_bytes,
                                                 __m128i off1_current_bytes,
                                                 __m128i *has_error) {
-  __m128i maskED = _mm_cmpeq_epi8(off1_current_bytes, _mm_set1_epi8(0xED));
-  __m128i maskF4 = _mm_cmpeq_epi8(off1_current_bytes, _mm_set1_epi8(0xF4));
+  __m128i maskED =
+      _mm_cmpeq_epi8(off1_current_bytes, _mm_set1_epi8(char(0xED)));
+  __m128i maskF4 =
+      _mm_cmpeq_epi8(off1_current_bytes, _mm_set1_epi8(char(0xF4)));
 
-  __m128i badfollowED =
-      _mm_and_si128(_mm_cmpgt_epi8(current_bytes, _mm_set1_epi8(0x9F)), maskED);
-  __m128i badfollowF4 =
-      _mm_and_si128(_mm_cmpgt_epi8(current_bytes, _mm_set1_epi8(0x8F)), maskF4);
+  __m128i badfollowED = _mm_and_si128(
+      _mm_cmpgt_epi8(current_bytes, _mm_set1_epi8(char(0x9F))), maskED);
+  __m128i badfollowF4 = _mm_and_si128(
+      _mm_cmpgt_epi8(current_bytes, _mm_set1_epi8(char(0x8F))), maskF4);
 
   *has_error = _mm_or_si128(*has_error, _mm_or_si128(badfollowED, badfollowF4));
 }
@@ -585,10 +591,10 @@ static inline void check_overlong(__m128i current_bytes,
   __m128i off1_hibits = _mm_alignr_epi8(hibits, previous_hibits, 16 - 1);
   __m128i initial_mins = _mm_shuffle_epi8(
       _mm_setr_epi8(-128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
-                    -128, -128, // 10xx => false
-                    0xC2, -128, // 110x
-                    0xE1,       // 1110
-                    0xF1),
+                    -128, -128,       // 10xx => false
+                    char(0xC2), -128, // 110x
+                    char(0xE1),       // 1110
+                    char(0xF1)),
       off1_hibits);
 
   __m128i initial_under = _mm_cmpgt_epi8(initial_mins, off1_current_bytes);
@@ -597,8 +603,8 @@ static inline void check_overlong(__m128i current_bytes,
       _mm_setr_epi8(-128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
                     -128, -128, // 10xx => false
                     127, 127,   // 110x => true
-                    0xA0,       // 1110
-                    0x90),
+                    char(0xA0), // 1110
+                    char(0x90)),
       off1_hibits);
   __m128i second_under = _mm_cmpgt_epi8(second_mins, current_bytes);
   *has_error =
@@ -645,7 +651,7 @@ check_utf8_bytes(__m128i current_bytes, struct processed_utf_bytes *previous,
   return pb;
 }
 
-static inline bool is_utf8(const unsigned char *src, size_t len) {
+static inline bool is_utf8(const char *src, size_t len) {
   size_t i = 0;
   __m128i has_error = _mm_setzero_si128();
   struct processed_utf_bytes previous = {.rawbytes = _mm_setzero_si128(),
@@ -677,9 +683,11 @@ static inline bool is_utf8(const unsigned char *src, size_t len) {
   return _mm_testz_si128(has_error, has_error) ? true : false;
 }
 } // namespace is_utf8_sse
-IS_UTF8_UNTARGET_REGION
+SIMDUTF_UNTARGET_REGION
 
-IS_UTF8_TARGET_REGION("avx2,bmi,lzcnt")
+#define IS_UTF8_TARGET_AVX2 SIMDUTF_TARGET_REGION("avx2,bmi,lzcnt")
+
+IS_UTF8_TARGET_AVX2
 namespace is_utf8_avx2 {
 
 static inline __m256i push_last_byte_of_a_to_b(__m256i a, __m256i b) {
@@ -695,7 +703,8 @@ static inline void check_smaller_than_0xf4(__m256i current_bytes,
                                            __m256i *has_error) {
   // unsigned, saturates to 0 below max
   *has_error = _mm256_or_si256(
-      *has_error, _mm256_subs_epu8(current_bytes, _mm256_set1_epi8(0xF4)));
+      *has_error,
+      _mm256_subs_epu8(current_bytes, _mm256_set1_epi8(char(0xF4))));
 }
 
 static inline __m256i continuation_lengths(__m256i high_nibbles) {
@@ -743,18 +752,18 @@ static inline void check_continuations(__m256i initial_lengths, __m256i carries,
 // when 0xED is found, next byte must be no larger than 0x9F
 // when 0xF4 is found, next byte must be no larger than 0x8F
 // next byte must be continuation, ie sign bit is set, so signed < is ok
-static inline void \wheck_first_continuation_max(__m256i current_bytes,
-                                                 __m256i off1_current_bytes,
-                                                 __m256i *has_error) {
+static inline void check_first_continuation_max(__m256i current_bytes,
+                                                __m256i off1_current_bytes,
+                                                __m256i *has_error) {
   __m256i maskED =
-      _mm256_cmpeq_epi8(off1_current_bytes, _mm256_set1_epi8(0xED));
+      _mm256_cmpeq_epi8(off1_current_bytes, _mm256_set1_epi8(char(0xED)));
   __m256i maskF4 =
-      _mm256_cmpeq_epi8(off1_current_bytes, _mm256_set1_epi8(0xF4));
+      _mm256_cmpeq_epi8(off1_current_bytes, _mm256_set1_epi8(char(0xF4)));
 
   __m256i badfollowED = _mm256_and_si256(
-      _mm256_cmpgt_epi8(current_bytes, _mm256_set1_epi8(0x9F)), maskED);
+      _mm256_cmpgt_epi8(current_bytes, _mm256_set1_epi8(char(0x9F))), maskED);
   __m256i badfollowF4 = _mm256_and_si256(
-      _mm256_cmpgt_epi8(current_bytes, _mm256_set1_epi8(0x8F)), maskF4);
+      _mm256_cmpgt_epi8(current_bytes, _mm256_set1_epi8(char(0x8F))), maskF4);
 
   *has_error =
       _mm256_or_si256(*has_error, _mm256_or_si256(badfollowED, badfollowF4));
@@ -773,13 +782,13 @@ static inline void check_overlong(__m256i current_bytes,
   __m256i initial_mins = _mm256_shuffle_epi8(
       _mm256_setr_epi8(-128, -128, -128, -128, -128, -128, -128, -128, -128,
                        -128, -128, -128, // 10xx => false
-                       0xC2, -128,       // 110x
-                       0xE1,             // 1110
-                       0xF1, -128, -128, -128, -128, -128, -128, -128, -128,
-                       -128, -128, -128, -128, // 10xx => false
-                       0xC2, -128,             // 110x
-                       0xE1,                   // 1110
-                       0xF1),
+                       char(0xC2), -128, // 110x
+                       char(0xE1),       // 1110
+                       char(0xF1), -128, -128, -128, -128, -128, -128, -128,
+                       -128, -128, -128, -128, -128, // 10xx => false
+                       char(0xC2), -128,             // 110x
+                       char(0xE1),                   // 1110
+                       char(0xF1)),
       off1_hibits);
 
   __m256i initial_under = _mm256_cmpgt_epi8(initial_mins, off1_current_bytes);
@@ -788,12 +797,12 @@ static inline void check_overlong(__m256i current_bytes,
       _mm256_setr_epi8(-128, -128, -128, -128, -128, -128, -128, -128, -128,
                        -128, -128, -128, // 10xx => false
                        127, 127,         // 110x => true
-                       0xA0,             // 1110
-                       0x90, -128, -128, -128, -128, -128, -128, -128, -128,
-                       -128, -128, -128, -128, // 10xx => false
-                       127, 127,               // 110x => true
-                       0xA0,                   // 1110
-                       0x90),
+                       char(0xA0),       // 1110
+                       char(0x90), -128, -128, -128, -128, -128, -128, -128,
+                       -128, -128, -128, -128, -128, // 10xx => false
+                       127, 127,                     // 110x => true
+                       char(0xA0),                   // 1110
+                       char(0x90)),
       off1_hibits);
   __m256i second_under = _mm256_cmpgt_epi8(second_mins, current_bytes);
   *has_error = _mm256_or_si256(*has_error,
@@ -839,7 +848,7 @@ check_utf8_bytes(__m256i current_bytes,
   return pb;
 }
 
-static inline int is_utf8(const unsigned char *src, size_t len) {
+static inline bool is_utf8(const char *src, size_t len) {
   size_t i = 0;
   __m256i has_error = _mm256_setzero_si256();
   struct avx_processed_utf_bytes previous = {
@@ -872,23 +881,21 @@ static inline int is_utf8(const unsigned char *src, size_t len) {
   return _mm256_testz_si256(has_error, has_error) ? true : false;
 }
 } // namespace is_utf8_avx2
-IS_UTF8_UNTARGET_REGION
-
-bool is_utf8(const unsigned char *src, size_t len) {
-  const static int kernel = is_utf8::which_kernel();
-  switch (kernel) {
-  case AVX2_KERNEL:
-    return is_utf8_avx2::is_utf8(src, len);
-  case SSE_KERNEL:
-    return is_utf8_sse::is_utf8(src, len);
-  default:
-    return is_utf8_fallback::is_utf8(src, len);
-  }
+SIMDUTF_UNTARGET_REGION
+bool is_utf8(const char *src, size_t len) {
+  typedef bool (*checker_function)(const char *, size_t);
+  static checker_function fnc =
+      is_utf8_core::which_kernel() == is_utf8_core::AVX2_KERNEL
+          ? is_utf8_avx2::is_utf8
+          : (is_utf8_core::which_kernel() == is_utf8_core::SSE_KERNEL
+                 ? is_utf8_sse::is_utf8
+                 : is_utf8_fallback::is_utf8);
+  return fnc(src, len);
 }
 
 // #endif // IS_UTF8_IS_X86_64
 #else
-bool is_utf8(const unsigned char *src, size_t len) {
+bool is_utf8(const char *src, size_t len) {
   return is_utf8_fallback::is_utf8(src, len);
 }
 #endif // IS_UTF8_IS_X86_64
