@@ -172,6 +172,6 @@ bool bench(size_t N) {
 }
 
 int main() {
-  return bench(40096) & bench(100000) & bench(50000) ? EXIT_SUCCESS
+  return (bench(40096) & bench(100000) & bench(50000)) ? EXIT_SUCCESS
                                                      : EXIT_FAILURE;
 }

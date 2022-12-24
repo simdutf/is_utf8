@@ -222,9 +222,9 @@ static inline void check_overlong(int8x16_t current_bytes,
   static const int8_t initial_mins_array[] = {
       -128, -128, -128, -128, -128, -128,
       -128, -128, -128, -128, -128, -128, // 10xx => false
-      0xC2, -128,                         // 110x
-      0xE1,                               // 1110
-      0xF1,
+      char(0xC2), -128,                         // 110x
+      char(0xE1),                               // 1110
+      char(0xF1),
   };
   int8x16_t initial_mins = vqtbl1q_s8(vld1q_s8(initial_mins_array),
                                       vreinterpretq_u8_s8(off1_hibits));
@@ -235,8 +235,8 @@ static inline void check_overlong(int8x16_t current_bytes,
       -128, -128, -128, -128, -128, -128,
       -128, -128, -128, -128, -128, -128, // 10xx => false
       127,  127,                          // 110x => true
-      0xA0,                               // 1110
-      0x90,
+      char(0xA0),                               // 1110
+      char(0x90),
   };
   int8x16_t second_mins =
       vqtbl1q_s8(vld1q_s8(second_mins_array), vreinterpretq_u8_s8(off1_hibits));
