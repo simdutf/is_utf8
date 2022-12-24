@@ -510,7 +510,11 @@ static inline uint32_t which_kernel() {
 }
 } // namespace is_utf8_core
 
+#if IS_UTF8_VISUAL_STUDIO
+#include <intrin.h>  // visual studio or clang
+#else
 #include <x86intrin.h>
+#endif
 
 #define IS_UTF8_TARGET_SSE SIMDUTF_TARGET_REGION("sse4.2")
 
