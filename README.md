@@ -10,7 +10,7 @@ quickly before accepting them is important.
 
 This is a simple one-source file library to validate UTF-8 strings at high speeds using SIMD instructions. It works on all platforms (ARM, x64).
 
-Code usage:
+Build and link `is_utf8.cpp` with your project. Code usage:
 
 ```C++
   #include "is_utf8.h"
