@@ -402,22 +402,14 @@ constexpr uint32_t avx2 = uint32_t(1) << 5;
 constexpr uint32_t bmi2 = uint32_t(1) << 8;
 constexpr uint32_t avx512f = uint32_t(1) << 16;
 constexpr uint32_t avx512dq = uint32_t(1) << 17;
-constexpr uint32_t avx512ifma = uint32_t(1) << 21;
 constexpr uint32_t avx512cd = uint32_t(1) << 28;
 constexpr uint32_t avx512bw = uint32_t(1) << 30;
 constexpr uint32_t avx512vl = uint32_t(1) << 31;
 } // namespace ebx
 
 namespace ecx {
-constexpr uint32_t avx512vbmi = uint32_t(1) << 1;
 constexpr uint32_t avx512vbmi2 = uint32_t(1) << 6;
-constexpr uint32_t avx512vnni = uint32_t(1) << 11;
-constexpr uint32_t avx512bitalg = uint32_t(1) << 12;
-constexpr uint32_t avx512vpopcnt = uint32_t(1) << 14;
 } // namespace ecx
-namespace edx {
-constexpr uint32_t avx512vp2intersect = uint32_t(1) << 8;
-}
 } // namespace cpuid_bit
 
 static inline void cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
