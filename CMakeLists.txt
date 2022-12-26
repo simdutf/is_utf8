@@ -9,16 +9,16 @@ project(is_utf8
 include(GNUInstallDirs)
 include(CTest)
 
+option(IS_UTF8_SANITIZE "Sanitize addresses" OFF)
+
 if (NOT CMAKE_BUILD_TYPE)
   message(STATUS "No build type selected, default to Release")
-  if(SIMDUTF_SANITIZE)
+  if(IS_UTF8_SANITIZE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
   else()
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
   endif()
 endif()
-
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake")
 
 # We compile tools, tests, etc. with C++ 17. Override yourself if you need on a target.
 set(CMAKE_CXX_STANDARD 11)
@@ -26,8 +26,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MACOSX_RPATH OFF)
 
-set(IS_UTF8_LIB_VERSION "2.0.9" CACHE STRING "is_utf8 library version")
-set(IS_UTF8_LIB_SOVERSION "2" CACHE STRING "is_utf8 library soversion")
+set(IS_UTF8_LIB_VERSION "1.0.0" CACHE STRING "is_utf8 library version")
+set(IS_UTF8_LIB_SOVERSION "1" CACHE STRING "is_utf8 library soversion")
 
 set(IS_UTF8_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -79,7 +79,7 @@ write_basic_package_version_file(
 )
 
 set(
-    IS_UTF8_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/simdutf"
+    IS_UTF8_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/is_utf8"
     CACHE STRING "CMake package config location relative to the install prefix"
 )
 mark_as_advanced(IS_UTF8_INSTALL_CMAKEDIR)
