@@ -7,6 +7,12 @@ add_library(is_utf8 STATIC is_utf8.cpp)
 target_include_directories(is_utf8 PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> )
 target_include_directories(is_utf8 PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>")
 
+if(IS_UTF8_SANITIZE)
+  target_compile_options(is_utf8 INTERFACE -fsanitize=address  -fno-omit-frame-pointer -fno-sanitize-recover=all)
+  target_compile_definitions(is_utf8 INTERFACE ASAN_OPTIONS=detect_leaks=1)
+  target_link_libraries(is_utf8 INTERFACE -fsanitize=address  -fno-omit-frame-pointer -fno-sanitize-recover=all)
+endif()
+
 if(MSVC)
   if("${MSVC_TOOLSET_VERSION}" STREQUAL "140")
     target_compile_options(is_utf8 INTERFACE /W0 /sdl)
