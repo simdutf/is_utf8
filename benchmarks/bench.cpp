@@ -1,4 +1,5 @@
 #include "is_utf8.h"
+#include "simdutf.h"
 #include <assert.h>
 #include <chrono>
 #include <stdbool.h>
@@ -150,6 +151,21 @@ bool bench(size_t N) {
     double t = (N * count) / double(finish - start);
 
     printf("basic_validate_utf8   %f GB/s\n", t);
+  }
+
+  {
+    uint64_t start = nano();
+    uint64_t finish = start;
+    size_t count{0};
+    uint64_t threshold = 500000000;
+    for (; finish - start < threshold;) {
+      count++;
+      isgood &= simdutf::validate_utf8(input, N);
+      finish = nano();
+    }
+    double t = (N * count) / double(finish - start);
+
+    printf("simdutf               %f GB/s\n", t);
   }
 
   {
