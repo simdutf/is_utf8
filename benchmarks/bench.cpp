@@ -132,7 +132,64 @@ static never_inline bool basic_validate_utf8(const char *b, size_t length) {
   }
 }
 
+
+bool zerobuffer_bench(size_t N) {
+  printf("zero buffer \n");
+  printf("string size = %zu \n", N);
+  char *input = new char[N]{};
+  volatile bool isgood{true};
+
+  {
+    uint64_t start = nano();
+    uint64_t finish = start;
+    size_t count{0};
+    uint64_t threshold = 500000000;
+    for (; finish - start < threshold;) {
+      count++;
+      isgood &= basic_validate_utf8(input, N);
+      finish = nano();
+    }
+    double t = (N * count) / double(finish - start);
+
+    printf("basic_validate_utf8   %f GB/s\n", t);
+  }
+
+  {
+    uint64_t start = nano();
+    uint64_t finish = start;
+    size_t count{0};
+    uint64_t threshold = 500000000;
+    for (; finish - start < threshold;) {
+      count++;
+      isgood &= simdutf::validate_utf8(input, N);
+      finish = nano();
+    }
+    double t = (N * count) / double(finish - start);
+
+    printf("simdutf               %f GB/s\n", t);
+  }
+
+  {
+    uint64_t start = nano();
+    uint64_t finish = start;
+    size_t count{0};
+    uint64_t threshold = 500000000;
+    for (; finish - start < threshold;) {
+      count++;
+      isgood &= is_utf8(input, N);
+      finish = nano();
+    }
+    double t = (N * count) / double(finish - start);
+
+    printf("is_utf8               %f GB/s\n", t);
+  }
+  delete[] input;
+  printf("\n");
+  return isgood;
+}
+
 bool bench(size_t N) {
+  printf("random UTF-8\n");
   printf("string size = %zu \n", N);
   char *input = new char[N];
   populate_utf8(input, N);
@@ -188,6 +245,7 @@ bool bench(size_t N) {
 }
 
 int main() {
-  return (bench(40096) & bench(100000) & bench(50000)) ? EXIT_SUCCESS
-                                                     : EXIT_FAILURE;
+  return (bench(40096) & bench(100000) & bench(50000))
+  & (zerobuffer_bench(40096) & zerobuffer_bench(100000) & zerobuffer_bench(50000))
+  ? EXIT_SUCCESS : EXIT_FAILURE;
 }
