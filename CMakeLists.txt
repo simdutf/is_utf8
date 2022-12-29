@@ -20,8 +20,7 @@ if (NOT CMAKE_BUILD_TYPE)
   endif()
 endif()
 
-# We compile tools, tests, etc. with C++ 17. Override yourself if you need on a target.
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MACOSX_RPATH OFF)
