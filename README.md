@@ -5,7 +5,6 @@ quickly before accepting them is important.
 
 
 
-
 ## How to use is_utf8
 
 This is a simple one-source file library to validate UTF-8 strings at high speeds using SIMD instructions. It works on all platforms (ARM, x64).
@@ -20,6 +19,11 @@ Build and link `is_utf8.cpp` with your project. Code usage:
 ```
 
 It should be able to validate strings using less than 1 cycle per input byte.
+
+Real-word usage
+------
+
+If you are using Node JS (19.4.0 or better), you already have access to this function as `buffer.isUtf8(...)`.
 
 Requirements
 -------
