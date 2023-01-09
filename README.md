@@ -23,7 +23,11 @@ It should be able to validate strings using less than 1 cycle per input byte.
 Real-word usage
 ------
 
+This C++ library is part of the JavaScript package [utf-8-validate](https://github.com/websockets/utf-8-validate). The utf-8-validate package is routinely downloaded more than [a million times per week](https://www.npmjs.com/package/utf-8-validate).
+
 If you are using Node JS (19.4.0 or better), you already have access to this function as `buffer.isUtf8(...)`.
+
+
 
 Requirements
 -------
