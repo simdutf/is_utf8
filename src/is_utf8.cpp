@@ -688,7 +688,7 @@ public:
 
   virtual uint32_t required_instruction_sets() const {
     return _required_instruction_sets;
-  };
+  }
 
   /**
    * Validate the UTF-8 string.
