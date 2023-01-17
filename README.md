@@ -19,16 +19,6 @@ Build and link `is_utf8.cpp` with your project. Code usage:
 
 It should be able to validate strings using less than 1 cycle per input byte.
 
-## Real-word usage
-
-This C++ library is part of the JavaScript package
-[utf-8-validate](https://github.com/websockets/utf-8-validate). The
-utf-8-validate package is routinely downloaded more than
-[a million times per week](https://www.npmjs.com/package/utf-8-validate).
-
-If you are using Node JS (19.4.0 or better), you already have access to this
-function as `buffer.isUtf8(...)`.
-
 ## Requirements
 
 - C++11 compatible compiler. We support LLVM clang, GCC, Visual Studio. (Our
@@ -45,6 +35,16 @@ function as `buffer.isUtf8(...)`.
   recognize: you should update your assembler to match your compiler (e.g.,
   upgrade binutils to version 2.30 or better under Linux) or use an older
   compiler matching the capabilities of your assembler.
+
+## Real-word usage
+
+This C++ library is part of the JavaScript package
+[utf-8-validate](https://github.com/websockets/utf-8-validate). The
+utf-8-validate package is routinely downloaded more than
+[a million times per week](https://www.npmjs.com/package/utf-8-validate).
+
+If you are using Node JS (19.4.0 or better), you already have access to this
+function as `buffer.isUtf8(...)`.
 
 ## Reference
 
