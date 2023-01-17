@@ -36,6 +36,28 @@ It should be able to validate strings using less than 1 cycle per input byte.
   upgrade binutils to version 2.30 or better under Linux) or use an older
   compiler matching the capabilities of your assembler.
 
+## Build with CMake
+
+```
+cmake -B build
+cmake --build build
+cd build
+ctest .
+```
+
+Visual Studio users must specify whether they want to build the Release or Debug
+version.
+
+To run benchmarks, build and execute the `bench` command.
+
+```
+cmake -B build
+cmake --build build
+./build/benchmarks/bench
+```
+
+Instructions are similar for Visual Studio users.
+
 ## Real-word usage
 
 This C++ library is part of the JavaScript package
