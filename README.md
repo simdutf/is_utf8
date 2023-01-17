@@ -44,7 +44,8 @@ utf-8-validate package is routinely downloaded more than
 [a million times per week](https://www.npmjs.com/package/utf-8-validate).
 
 If you are using Node JS (19.4.0 or better), you already have access to this
-function as `buffer.isUtf8(...)`.
+function as
+[`buffer.isUtf8(input)`](https://nodejs.org/api/buffer.html#bufferisutf8input).
 
 ## Reference
 
