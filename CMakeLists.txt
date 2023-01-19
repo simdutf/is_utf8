@@ -26,7 +26,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MACOSX_RPATH OFF)
 
 set(IS_UTF8_LIB_VERSION "1.3.0" CACHE STRING "is_utf8 library version")
-set(IS_UTF8_LIB_SOVERSION "2" CACHE STRING "is_utf8 library soversion")
+set(IS_UTF8_LIB_SOVERSION "1" CACHE STRING "is_utf8 library soversion")
 
 set(IS_UTF8_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 add_subdirectory(src)
