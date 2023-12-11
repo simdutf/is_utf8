@@ -2172,7 +2172,7 @@ namespace icelake {} // namespace icelake
 // We should not get warnings while including <x86intrin.h> yet we do
 // under some versions of GCC.
 // If the x86intrin.h header has uninitialized values that are problematic,
-// it is a GCC issue, we want to ignore these warnigns.
+// it is a GCC issue, we want to ignore these warnings.
 IS_UTF8_DISABLE_GCC_WARNING(-Wuninitialized)
 #endif
 
@@ -2398,7 +2398,7 @@ public:
 // We should not get warnings while including <x86intrin.h> yet we do
 // under some versions of GCC.
 // If the x86intrin.h header has uninitialized values that are problematic,
-// it is a GCC issue, we want to ignore these warnigns.
+// it is a GCC issue, we want to ignore these warnings.
 IS_UTF8_DISABLE_GCC_WARNING(-Wuninitialized)
 #endif
 
@@ -3395,7 +3395,7 @@ public:
 // We should not get warnings while including <x86intrin.h> yet we do
 // under some versions of GCC.
 // If the x86intrin.h header has uninitialized values that are problematic,
-// it is a GCC issue, we want to ignore these warnigns.
+// it is a GCC issue, we want to ignore these warnings.
 IS_UTF8_DISABLE_GCC_WARNING(-Wuninitialized)
 #endif
 
