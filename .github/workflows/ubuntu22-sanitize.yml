@@ -9,7 +9,7 @@ jobs:
       ! contains(toJSON(github.event.commits.*.message), '[skip github]')
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use cmake
         run: |
           mkdir builddebug &&
@@ -22,4 +22,4 @@ jobs:
           cd build &&
           cmake -DIS_UTF8_SANITIZE=ON ..  &&
           cmake --build .   &&
-          ctest -j --output-on-failure -LE explicitonly 
+          ctest -j --output-on-failure -LE explicitonly
