@@ -20,7 +20,11 @@ if (NOT CMAKE_BUILD_TYPE)
   endif()
 endif()
 
-set(CMAKE_CXX_STANDARD 14)
+# We compile tools, tests, etc. with C++ 11. Override yourself if you need on a
+# target.
+set(IS_UTF8_CXX_STANDARD 11 CACHE STRING "the C++ standard to use for is_utf8")
+
+set(CMAKE_CXX_STANDARD ${IS_UTF8_CXX_STANDARD})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MACOSX_RPATH OFF)
@@ -40,6 +44,8 @@ endif(BUILD_TESTING)
 
 
 add_subdirectory(benchmarks)
+
+message(STATUS "Compiling using the C++ standard:" ${CMAKE_CXX_STANDARD})
 # ---- Install rules ----
 add_library(is_utf8::is_utf8 ALIAS is_utf8)
 
