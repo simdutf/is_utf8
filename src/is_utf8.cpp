@@ -1116,8 +1116,9 @@ template <typename T, typename Mask = simd8<bool>> struct base_u8 {
     return *this_cast;
   }
 
-  is_utf8_really_inline Mask operator==(const simd8<T> other) const {
-    return vceqq_u8(*this, other);
+  friend is_utf8_really_inline Mask operator==(const simd8<T> lhs,
+                                               const simd8<T> rhs) {
+    return vceqq_u8(lhs, rhs);
   }
 
   template <int N = 1>
@@ -2539,8 +2540,9 @@ struct base8 : base<simd8<T>> {
   is_utf8_really_inline T last() const {
     return _mm256_extract_epi8(*this, 31);
   }
-  is_utf8_really_inline Mask operator==(const simd8<T> other) const {
-    return _mm256_cmpeq_epi8(*this, other);
+  friend is_utf8_really_inline Mask operator==(const simd8<T> lhs,
+                                               const simd8<T> rhs) {
+    return _mm256_cmpeq_epi8(lhs, rhs);
   }
 
   static const int SIZE = sizeof(base<T>::value);
@@ -2965,8 +2967,9 @@ struct base16 : base<simd16<T>> {
   is_utf8_really_inline base16(const Pointer *ptr)
       : base16(_mm256_loadu_si256(reinterpret_cast<const __m256i *>(ptr))) {}
 
-  is_utf8_really_inline Mask operator==(const simd16<T> other) const {
-    return _mm256_cmpeq_epi16(*this, other);
+  friend is_utf8_really_inline Mask operator==(const simd16<T> lhs,
+                                               const simd16<T> rhs) {
+    return _mm256_cmpeq_epi16(lhs, rhs);
   }
 
   /// the size of vector in bytes
@@ -3517,8 +3520,9 @@ struct base8 : base<simd8<T>> {
   is_utf8_really_inline base8() : base<simd8<T>>() {}
   is_utf8_really_inline base8(const __m128i _value) : base<simd8<T>>(_value) {}
 
-  is_utf8_really_inline Mask operator==(const simd8<T> other) const {
-    return _mm_cmpeq_epi8(*this, other);
+  friend is_utf8_really_inline Mask operator==(const simd8<T> lhs,
+                                               const simd8<T> rhs) {
+    return _mm_cmpeq_epi8(lhs, rhs);
   }
 
   static const int SIZE = sizeof(base<simd8<T>>::value);
@@ -4032,8 +4036,9 @@ struct base16 : base<simd16<T>> {
   is_utf8_really_inline base16(const Pointer *ptr)
       : base16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(ptr))) {}
 
-  is_utf8_really_inline Mask operator==(const simd16<T> other) const {
-    return _mm_cmpeq_epi16(*this, other);
+  friend is_utf8_really_inline Mask operator==(const simd16<T> lhs,
+                                               const simd16<T> rhs) {
+    return _mm_cmpeq_epi16(lhs, rhs);
   }
 
   static const int SIZE = sizeof(base<simd16<T>>::value);
