@@ -6748,6 +6748,8 @@ IS_UTF8_UNTARGET_REGION
 
 IS_UTF8_POP_DISABLE_WARNINGS
 
-bool is_utf8(const char *src, size_t len) {
-  return is_utf8_internals::validate_utf8(src, len);
+extern "C" {
+  bool is_utf8(const char *src, size_t len) {
+    return is_utf8_internals::validate_utf8(src, len);
+  }
 }
