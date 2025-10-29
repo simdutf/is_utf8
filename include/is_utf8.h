@@ -1,10 +1,21 @@
 #ifndef IS_UTF8
+#define IS_UTF8
+
 #include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Check whether the provided string is UTF-8.
 // The function is designed for use cases where
 // 99.99% of the inputs are valid UTF-8.
 // Thus the function unconditionally scans the
 // whole input.
-extern "C" bool is_utf8(const char *src, size_t len);
+bool is_utf8(const char *src, size_t len);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif // IS_UTF8
