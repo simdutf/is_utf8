@@ -3,6 +3,7 @@
 Most strings online are in unicode using the UTF-8 encoding. Validating strings
 quickly before accepting them is important.
 
+
 ## How to use is_utf8
 
 This is a simple one-source file library to validate UTF-8 strings at high
@@ -77,8 +78,9 @@ function as
 
 ## Want more?
 
-If you want a wide range of fast Unicode function for production use, you can
-rely on the simdutf library. It is as simple as the following:
+[We recommend that you use the simdutf library instead](https://github.com/simdutf/simdutf). It is possible, with the simdutf library to select just the needed functions through feature macros.
+
+It is as simple as the following:
 
 ```C++
 #include "simdutf.cpp"
