@@ -91,6 +91,12 @@ set(
 mark_as_advanced(IS_UTF8_INSTALL_CMAKEDIR)
 
 install(
+    EXPORT is_utf8Targets
+    DESTINATION "${IS_UTF8_INSTALL_CMAKEDIR}"
+    NAMESPACE is_utf8::
+)
+
+install(
     FILES
     "${PROJECT_BINARY_DIR}/is_utf8-config.cmake"
     "${PROJECT_BINARY_DIR}/is_utf8-config-version.cmake"
