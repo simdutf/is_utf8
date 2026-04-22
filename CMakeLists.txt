@@ -10,6 +10,7 @@ include(GNUInstallDirs)
 include(CTest)
 
 option(IS_UTF8_SANITIZE "Sanitize addresses" OFF)
+option(IS_UTF8_BENCHMARKS "Build benchmarks" ${PROJECT_IS_TOP_LEVEL})
 
 if (NOT CMAKE_BUILD_TYPE)
   message(STATUS "No build type selected, default to Release")
@@ -42,8 +43,9 @@ else()
   message(STATUS "The tests are disabled.")
 endif(BUILD_TESTING)
 
-
-add_subdirectory(benchmarks)
+if (IS_UTF8_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()
 
 message(STATUS "Compiling using the C++ standard:" ${CMAKE_CXX_STANDARD})
 # ---- Install rules ----
@@ -87,6 +89,12 @@ set(
     CACHE STRING "CMake package config location relative to the install prefix"
 )
 mark_as_advanced(IS_UTF8_INSTALL_CMAKEDIR)
+
+install(
+    EXPORT is_utf8Targets
+    DESTINATION "${IS_UTF8_INSTALL_CMAKEDIR}"
+    NAMESPACE is_utf8::
+)
 
 install(
     FILES
